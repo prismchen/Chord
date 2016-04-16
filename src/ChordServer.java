@@ -5,18 +5,24 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.Hashtable;
 import java.util.HashSet;
 
 public class ChordServer {
 	
 	private ServerSocket listener;
 	
+	private final static int m = 8;
 	private int minDelay;
 	private int maxDelay;
 	private int initPort;
 	private HashSet<Integer> allKeys;
 	
 	private HashSet<Integer> runnningNodes;
+	private Hashtable<Integer, Socket> nodeSocks;
+	private Hashtable<Integer, PrintWriter> nodeOuts;
+	private Hashtable<Integer, BufferedReader> nodeIns;
 	
 	PrintWriter clientOut;
 	
@@ -113,11 +119,16 @@ public class ChordServer {
 		
 		private int identifier;
 		private HashSet<Integer> keys;
+		private FingerTable fingerTable;
 		
-		public node(int identifier, HashSet<Integer> initHashset) {
+		public node(int identifier, HashSet<Integer> initKeys) throws UnknownHostException, IOException {
 			this.identifier = identifier;
-			this.keys = initHashset;
+			this.keys = initKeys;
+			this.fingerTable = new FingerTable(m);
 			runnningNodes.add(identifier);
+			nodeSocks.put(identifier, new Socket("localhost", 9000 + identifier));
+			nodeIns.put(identifier, new BufferedReader(new InputStreamReader(nodeSocks.get(identifier).getInputStream())));
+			nodeOuts.put(identifier, new PrintWriter(nodeSocks.get(identifier).getOutputStream(), true));
 		}
 		
 		public void run() {
@@ -127,7 +138,5 @@ public class ChordServer {
 			}
 		}
 	}
-	
-	
 
 }
