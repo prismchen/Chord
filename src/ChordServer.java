@@ -21,21 +21,12 @@ public class ChordServer {
 	private int initPort;
 	private HashSet<Integer> runnningNodes;     //how to detect nodes are offline 
 
-	
 	PrintWriter clientOut;
 	
 	// Ctor of ChordServer
-	public ChordServer() {
-	
-		try {
-			listener = new ServerSocket(9000);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
+	public ChordServer() {	
 		readConfig("config");
 		runnningNodes = new HashSet<Integer>();
-
 	}
 	
 	private void readConfig(String config){
@@ -61,24 +52,13 @@ public class ChordServer {
 	
 	// run()
 	public void run() throws IOException {
-		
-		new node(0).start();
-			
-		try {
-			new ClientHandler(listener.accept()).start();
-        } finally {
-            listener.close(); 
-        }
+		new node(0).start();	
 	}
 	
-	
-	public static void main(String[] args) throws IOException {
-		
+	public static void main(String[] args) throws IOException {	
 		ChordServer server = new ChordServer();
 		server.run();
-		
 	}
-	
 
 	// clientHandler thread
 	private class ClientHandler extends Thread {
@@ -110,9 +90,7 @@ public class ChordServer {
 				e.printStackTrace();
 			}
 		}
-		
-		
-		
+	
 	}
 	
 	// node thread
@@ -134,6 +112,7 @@ public class ChordServer {
 		public node(int identifier) throws UnknownHostException, IOException {
 			this.identifier = identifier;
 			serverSocket = new ServerSocket(9000 + identifier);
+			new nodeListener(serverSocket).start();
 			this.keys = new HashSet<Integer>();
 			if(identifier == 0){
 				for (int i=0; i<256; i++) {
@@ -193,25 +172,25 @@ public class ChordServer {
 		public void updateOthers() throws IOException{
 			for (int i = 0; i < m; i++){
 				int p = findPredecessor((int)(identifier - Math.pow(2, i)));
-				String msg = "Temp " + "updateFingerTable " + identifier + " " + i+1;
+				String msg = "updateFingerTable " + identifier + " " + i+1;
 				RemoteProcedureCall(p, msg);
 			}
 		}
 		
 		public int findSuccessor(int id) throws IOException {
 			int nPrime = findPredecessor(id);
-			String msg = "Temp " + "getSuccessor";
+			String msg = "getSuccessor";
 			return RemoteProcedureCall(nPrime, msg);
 			
 		}
 		
 		public int findPredecessor(int id) throws IOException{
 			int nPrime = identifier;
-			String msg = "Temp " + "getSuccessor";
+			String msg = "getSuccessor";
 			int nPrimeSuccessor = RemoteProcedureCall(nPrime, msg);
 
 			while(!isInRange(id, nPrime, nPrimeSuccessor )){
-				msg = "Temp " + "closestPrecedingFinger";
+				msg = "closestPrecedingFinger " + id;
 				nPrime = RemoteProcedureCall(nPrime, msg);
 			}
 			return nPrime;
@@ -230,7 +209,7 @@ public class ChordServer {
 			if(isInRange(value, identifier, fingerTable.getFingerNode(index))){
 				fingerTable.setFingerNode(index, value);
 				int p = predecessor;
-				String msg = "Temp " + "updateFingerTable " + value + " " + index;
+				String msg = "updateFingerTable " + value + " " + index;
 				RemoteProcedureCall(p, msg);
 			}
 		}
@@ -239,9 +218,12 @@ public class ChordServer {
 			Socket socketTemp = new Socket("localhost", 9000 + node);
 			PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);;
 			BufferedReader socketTempOut = new BufferedReader(new InputStreamReader(socketTemp.getInputStream()));;
+			socketTempIn.println("temp");
 			socketTempIn.println(msg);
 			String feedBack = socketTempOut.readLine();
-			socketTemp = null;
+			socketTemp.close();
+			socketTempIn.close();
+			socketTempOut.close();
 			return Integer.parseInt(feedBack);
 		}
 		
@@ -254,6 +236,84 @@ public class ChordServer {
 				return !((upperBound <= value) && (value < lowerBound));
 			}
 		}
+		
+		// node listener for accepting new connetions
+		private class nodeListener extends Thread {
+			ServerSocket serverSocket;
+			BufferedReader serverIn;
+			
+			public nodeListener(ServerSocket serverSocket){
+				this.serverSocket = serverSocket;
+			}
+			
+			public void run(){
+				Socket hiddenSocket;
+				try {
+					hiddenSocket = serverSocket.accept();
+					BufferedReader reader = new BufferedReader(new InputStreamReader(hiddenSocket.getInputStream()));
+					String handlerType = reader.readLine();
+					if(handlerType.equals("client")){
+						new ClientHandler(hiddenSocket).start();
+					} else if (handlerType.equals("temp")){
+						new TempHandler(hiddenSocket).start();
+					} else {
+						// connection for fingertable
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				
+			}
+
+			
+			// Temp connection handler
+			private class TempHandler extends Thread {
+				
+				Socket socket;
+				BufferedReader tempIn;
+				PrintWriter tempOut;
+				
+				public TempHandler(Socket socket) throws IOException {
+					this.socket = socket;
+					tempIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+					tempOut = new PrintWriter(socket.getOutputStream(), true);
+					System.out.print("Server" + identifier + "is in temp connection \n");
+					
+				}
+				
+				public void run(){
+					String command;
+					try {
+						while((command = tempIn.readLine()) != null){
+							String tokens[] = command.split(" ");
+							if(tokens[0].equals("findSuccessor")){
+								int result = findSuccessor(Integer.parseInt(tokens[1]));
+								tempOut.println(result);
+							} else if (tokens[0].equals("updateFingerTable")){
+								updateFingerTable(Integer.parseInt(tokens[1]), Integer.parseInt(tokens[2]));
+								tempOut.println("ACK");
+							} else if (tokens[0].equals("getSuccessor")){
+								int result = getSuccessor();
+								tempOut.println(result);
+							} else if (tokens[0].equals("closestPrecedingFinger")){
+								int result = closestPrecedingFinger(Integer.parseInt(tokens[1]));
+								tempOut.println(result);
+							} else {
+								System.out.println("Unknown procedure call");
+								tempOut.println("Unknown");
+							}
+						}
+					} catch (IOException e) {
+						return;
+					}	
+					
+				}
+			}
+			
+		}
+		
+		
+		
 	}
 
 }

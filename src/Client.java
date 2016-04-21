@@ -21,6 +21,7 @@ public class Client {
 			System.out.print("Connected to server ...\n");
 			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			out = new PrintWriter(socket.getOutputStream(), true);
+			out.println("client");
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
