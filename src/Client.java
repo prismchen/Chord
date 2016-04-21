@@ -9,6 +9,7 @@ public class Client {
 	
 	Socket socket;
 	
+	
 	PrintWriter out;
 	BufferedReader in;
 	
