@@ -112,12 +112,13 @@ public class ChordServer {
 						String [] tokens = userInput.split(" ");
 						if(tokens[0].indexOf("join") == 0){
 							new node(Integer.parseInt(tokens[1]));
+						} else if(userInput.equals("show all")){
+							RemoteProcedureCall(0, "showAll");
+//							System.out.println("ACK");
 						} else if(tokens[0].equals("show")){
 							RemoteProcedureCall(Integer.parseInt(tokens[1]), "show");
 							System.out.println("ACK");
-						} else if(tokens[0].equals("showAll")){
-							RemoteProcedureCall(0, "showAll");
-						}
+						} 
 						//more commands go here
 					}
 				} catch (IOException e) {
@@ -126,8 +127,8 @@ public class ChordServer {
 			}
 			
 			public int RemoteProcedureCall(int node, String msg) throws IOException{
-				System.out.println("In client RemoteProcedureCall");
-				System.out.println("node " + node + " msg " + msg );
+//				System.out.println("In client RemoteProcedureCall");
+//				System.out.println("node " + node + " msg " + msg );
 				try(
 					Socket socketTemp = new Socket("localhost", 9000 + node);
 					PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
@@ -138,7 +139,7 @@ public class ChordServer {
 						String feedBack;
 						int result = -1;
 						while((feedBack = socketTempOut.readLine()) != null){
-							System.out.println("138 feedBack " + feedBack);
+//							System.out.println("138 feedBack " + feedBack);
 							result = Integer.parseInt(feedBack);
 							break;
 						}
@@ -173,7 +174,7 @@ public class ChordServer {
 		private boolean hasVisited;
 		
 		public node(int identifier) throws UnknownHostException, IOException {
-		System.out.println("In node ctor");
+//		System.out.println("In node ctor");
 			this.identifier = identifier;
 			serverSocket = new ServerSocket(9000 + identifier);
 			new nodeListener(serverSocket).start();
@@ -361,7 +362,7 @@ public class ChordServer {
 		}
 		
 		public int findPredecessor(int id) throws IOException{
-	System.out.println("Identifier " + identifier + "In findPredecessor " + id);
+//	System.out.println("Identifier " + identifier + "In findPredecessor " + id);
 			int nPrime = identifier;
 			int nPrimeSuccessor = getSuccessor();
 			String msg;
@@ -533,7 +534,7 @@ public class ChordServer {
 					String command;
 					try {
 						while((command = tempIn.readLine()) != null){
-							System.out.println("Command " + command);
+//							System.out.println("Command " + command);
 							String tokens[] = command.split(" ");
 							if(tokens[0].equals("findSuccessor")){
 								int result = findSuccessor(Integer.parseInt(tokens[1]));
@@ -567,6 +568,7 @@ public class ChordServer {
 								tempOut.println(0);	
 							} else if (tokens[0].equals("showAll")){
 								showAll();
+								tempOut.println(0);	
 							} else {
 								System.out.println("Unknown procedure call");
 								tempOut.println("Unknown");
