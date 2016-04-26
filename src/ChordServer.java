@@ -206,6 +206,7 @@ public class ChordServer {
 				duplicateMyKeys();	// ask for successor to duplicate my keys
 				System.out.println("ACK");
 			}
+			duplicateMyKeys();
 			
 			// connect with client
 			socketClient = new Socket("localhost", 8999);
