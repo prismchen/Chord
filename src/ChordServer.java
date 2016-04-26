@@ -165,9 +165,6 @@ public class ChordServer {
 		private Hashtable<Integer, Socket> nodeSocks;				//store the socket from other nodes  --identifier socket
 		private Hashtable<Integer, PrintWriter> nodeOuts;
 		private Hashtable<Integer, BufferedReader> nodeIns;
-//		private Socket socket0;
-//		private PrintWriter SendTo0;
-//		private BufferedReader RecFrom0;
 		private Socket socketClient;
 		private PrintWriter SendToClient;
 		private BufferedReader RecFromClient;
@@ -229,7 +226,7 @@ public class ChordServer {
 		}
 		
 		public void setSuccessor(int successor) throws IOException{
-	System.out.println("In setSuccessor identifier " + identifier + " successor " + successor);		
+//	System.out.println("In setSuccessor identifier " + identifier + " successor " + successor);		
 			this.successor = successor;
 			if(!myKeys.isEmpty()){
 				duplicateMyKeys();
@@ -252,7 +249,7 @@ public class ChordServer {
 //	System.out.println("Line 245 " + feedBack);
 			fingerTable.setFingerNode(0, feedBack);
 			setSuccessor(feedBack);
-	System.out.println("here " + fingerTable.getFingerPredecessor(0));
+//	System.out.println("here " + fingerTable.getFingerPredecessor(0));
 			setPredecessor(fingerTable.getFingerPredecessor(0));
 //	System.out.println("Line 197");
 			fingerTable.setFingerPredecessor(0, identifier);
@@ -272,17 +269,17 @@ public class ChordServer {
 		}
 		
 		public void updateOthers() throws IOException{
-	System.out.println("In updateOthers");
+//	System.out.println("In updateOthers");
 			for (int i = 0; i < m; i++){
 				int p = findPredecessor((int)(identifier - Math.pow(2, i) + 1));				// modified 
-	System.out.println("p " + p);
+//	System.out.println("p " + p);
 				String msg = "updateFingerTable " + identifier + " " + i;
 				RemoteProcedureCall(p, msg);
 			}
 		}
 		
 		public void updateFingerTable(int value, int index) throws IOException{
-	System.out.println("Identifier " + identifier + " In updateFingerTable");
+//	System.out.println("Identifier " + identifier + " In updateFingerTable");
 			if(isInRange(value, identifier, fingerTable.getFingerNode(index), false, false)){	// modified
 				if(index == 0){
 					setSuccessor(value);
@@ -300,7 +297,7 @@ public class ChordServer {
 		}
 		
 		// be asked by predecessor to transfer keys to newly added predecessor
-		public String transferKeys(int node){
+		public String transferKeys(int node) throws IOException{
 //		System.out.println("In transferKeys " + node);
 			StringBuilder result = new StringBuilder();
 			HashSet<Integer> myNewKeys = new HashSet<Integer>();
@@ -312,6 +309,9 @@ public class ChordServer {
 				}
 			}
 			myKeys = myNewKeys;
+			
+			duplicateMyKeys();		// ask successor to duplicate my current keys
+			
 			return result.toString();
 		}
 		
@@ -418,8 +418,8 @@ public class ChordServer {
 		}
 		
 		public int RemoteProcedureCall(int node, String msg) throws IOException{
-	System.out.println("In RemoteProcedureCall");
-	System.out.println("node " + node + " msg " + msg );
+//	System.out.println("In RemoteProcedureCall");
+//	System.out.println("node " + node + " msg " + msg );
 			try (
 				Socket socketTemp = new Socket("localhost", 9000 + node);
 				PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
@@ -521,11 +521,11 @@ public class ChordServer {
 				PrintWriter tempOut;
 				
 				public TempHandler(Socket socket, BufferedReader reader, PrintWriter writer) throws IOException {
-				System.out.println("TempHandler ctor");
+//				System.out.println("TempHandler ctor");
 					this.socket = socket;
 					this.tempIn = reader;
 					this.tempOut = writer;
-					System.out.print("Server " + identifier + " is in temp connection \n");
+//					System.out.print("Server " + identifier + " is in temp connection \n");
 					
 				}
 				

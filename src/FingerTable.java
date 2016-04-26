@@ -52,9 +52,6 @@ public class FingerTable {
 	private class Finger {
 		public int start;
 		public int node; 
-		public Socket socket;
-		public PrintWriter socketIn;
-		public BufferedReader socketOut;
 		
 		private Finger(int identifier, int fingerIndex) {	
 			start = (int) (identifier + Math.pow(2, fingerIndex));
@@ -89,8 +86,8 @@ public class FingerTable {
 		}
 		
 		public int RemoteProcedureCall(int node, String msg) throws IOException{
-	System.out.println("In finger RemoteProcedureCall");
-	System.out.println("node " + node + " msg " + msg );
+//	System.out.println("In finger RemoteProcedureCall");
+//	System.out.println("node " + node + " msg " + msg );
 			Socket socketTemp = new Socket("localhost", 9000 + node);
 			PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
 			BufferedReader socketTempOut = new BufferedReader(new InputStreamReader(socketTemp.getInputStream()));
@@ -99,14 +96,14 @@ public class FingerTable {
 			String feedBack;
 			int result = -1;
 			while((feedBack = socketTempOut.readLine()) != null){
-				System.out.println("275 feedBack " + feedBack);
+//				System.out.println("275 feedBack " + feedBack);
 				result = Integer.parseInt(feedBack);
 				break;
 			}
 			socketTemp.close();
 			socketTempIn.close();
 			socketTempOut.close();
-		System.out.println("279 " + feedBack);	
+//		System.out.println("279 " + feedBack);	
 			return result;
 		}
 	}
