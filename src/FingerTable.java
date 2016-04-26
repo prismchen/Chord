@@ -3,7 +3,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.net.UnknownHostException;
 
 
 public class FingerTable {
@@ -24,7 +23,7 @@ public class FingerTable {
 		}
 	}
 	
-	public int getFingerNode(int index){
+	public int getFingerNode(int index){ 
 		return fingers[index].getterNode();
 	}
 	
@@ -40,8 +39,14 @@ public class FingerTable {
 		return fingers[index].getPredecessor();
 	}
 	
-	public String setFingerPredecessor(int index, int value) throws NumberFormatException, IOException{
+	public int setFingerPredecessor(int index, int value) throws NumberFormatException, IOException{
 		return fingers[index].setPredecessor(value);
+	}
+	
+	public void show(){
+		for(int i = 0; i < 8; i++){
+			System.out.println("Finger " + i + ": " + getFingerNode(i));
+		}
 	}
 	
 	private class Finger {
@@ -51,21 +56,9 @@ public class FingerTable {
 		public PrintWriter socketIn;
 		public BufferedReader socketOut;
 		
-		private Finger(int identifier, int fingerIndex) {
-			
+		private Finger(int identifier, int fingerIndex) {	
 			start = (int) (identifier + Math.pow(2, fingerIndex));
-//			socket = new Socket("localhost", 9000 + node);
-//			socketIn = new PrintWriter(socket.getOutputStream(), true);
-//			socketOut = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		}
-		
-//		private Finger(int Start, int Node) throws UnknownHostException, IOException{
-//			start = Start;
-//			node = Node;
-//			socket = new Socket("localhost", 9000 + node);
-//			socketIn = new PrintWriter(socket.getOutputStream(), true);
-//			socketOut = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-//		}
 		
 		public int getterStart(){
 			return start;
@@ -84,13 +77,37 @@ public class FingerTable {
 		}
 		
 		public int getPredecessor() throws NumberFormatException, IOException{
-			socketIn.println("getPredecessor");
-			return Integer.parseInt(socketOut.readLine());
+//			socketIn.println("getPredecessor");
+//			return Integer.parseInt(socketOut.readLine());
+			return RemoteProcedureCall(node, "getPredecessor");
 		}
 		
-		public String setPredecessor(int value) throws NumberFormatException, IOException{
-			socketIn.println("setPredecessor " + value);
-			return socketOut.readLine();
+		public int setPredecessor(int value) throws NumberFormatException, IOException{
+//			socketIn.println("setPredecessor " + value);
+//			return socketOut.readLine();
+			return RemoteProcedureCall(node, "setPredecessor " + value);
+		}
+		
+		public int RemoteProcedureCall(int node, String msg) throws IOException{
+	System.out.println("In finger RemoteProcedureCall");
+	System.out.println("node " + node + " msg " + msg );
+			Socket socketTemp = new Socket("localhost", 9000 + node);
+			PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
+			BufferedReader socketTempOut = new BufferedReader(new InputStreamReader(socketTemp.getInputStream()));
+			socketTempIn.println("temp");
+			socketTempIn.println(msg);
+			String feedBack;
+			int result = -1;
+			while((feedBack = socketTempOut.readLine()) != null){
+				System.out.println("275 feedBack " + feedBack);
+				result = Integer.parseInt(feedBack);
+				break;
+			}
+			socketTemp.close();
+			socketTempIn.close();
+			socketTempOut.close();
+		System.out.println("279 " + feedBack);	
+			return result;
 		}
 	}
 }
