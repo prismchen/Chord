@@ -7,14 +7,10 @@ import java.net.ConnectException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.HashSet;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Timer;
+import java.util.TimerTask;
 
-import javax.swing.text.html.HTMLDocument.Iterator;
-
-import org.omg.CORBA.portable.UnknownException;
 
 public class ChordServer {
 
@@ -22,14 +18,12 @@ public class ChordServer {
 	private int minDelay;
 	private int maxDelay;
 	private int initPort;
-	private HashSet<Integer> runnningNodes;     //how to detect nodes are offline 
 
 	PrintWriter clientOut;
 	
 	// Ctor of ChordServer
 	public ChordServer() {	
 		readConfig("config");
-		runnningNodes = new HashSet<Integer>();
 	}
 	
 	private void readConfig(String config){
@@ -55,129 +49,105 @@ public class ChordServer {
 	
 	// run()
 	public void run() throws IOException {
-		new ClientHandler();
-
+		new ConsoleHandler().start();
+		new node(0).start();
 	}
 	
 	public static void main(String[] args) throws IOException {	
 		ChordServer server = new ChordServer();
 		server.run();
 	}
-
-	// clientHandler thread
-	private class ClientHandler extends Thread {
-		
-		ServerSocket clientListener;
-		// connenction from all nodes
-		HashMap<Integer, Socket> socketMap;
-		HashMap<Integer, BufferedReader> readertMap;
-		HashMap<Integer, PrintWriter> writerMap;
-
-		// Ctor
-		public ClientHandler() throws IOException {
-			clientListener = new ServerSocket(8999);					
-			new node(0).start();	
-			new ConsoleHandler().start();
+	
+	private class ConsoleHandler extends Thread {
+		BufferedReader stdIn;
+		public ConsoleHandler() {
+			stdIn = new BufferedReader(new InputStreamReader(System.in));
 		}
-		
-		// accept connections from node
-		public void run() {
-			
+		public void run(){
+			String userInput;
 			try {
-				// node connects to client, store all the connection in case of failure detector (heart beat?)
-				Socket socket = clientListener.accept();
-				BufferedReader socketIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				PrintWriter socketOut = new PrintWriter(socket.getOutputStream(), true);
-				int identifier = Integer.parseInt(socketIn.readLine());
-				socketMap.put(identifier, socket);
-				readertMap.put(identifier, socketIn);
-				writerMap.put(identifier, socketOut);
-				System.out.println(socketIn.readLine());		// ACK for join node
-				
+				while((userInput = stdIn.readLine()) != null){
+					String [] tokens = userInput.split(" ");
+					if(tokens[0].indexOf("join") == 0){
+						new node(Integer.parseInt(tokens[1])).start();
+					} else if(userInput.equals("show all")){
+						RemoteProcedureCall(0, "showAll");
+//						System.out.println("ACK");
+					} else if(tokens[0].equals("show")){
+						RemoteProcedureCall(Integer.parseInt(tokens[1]), "show");
+						System.out.println("ACK");
+					} else if(tokens[0].equals("find")) {
+						int p = Integer.parseInt(tokens[1]);
+						int k = Integer.parseInt(tokens[2]);
+						String msg = "findSuccessor " + k;
+						int res = RemoteProcedureCall(p, msg);
+						if (res != -20)
+							System.out.println("node " + res + " contains " + k);
+						else 
+							System.out.println("node " + p + " does not exit");
+					} else if(tokens[0].equals("crash")){
+						int p = Integer.parseInt(tokens[1]);
+						String msg = "crash " + p;
+						RemoteProcedureCall(p, msg);
+					} else {
+						System.out.println("Invalid input");
+					}
+				}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			
 		}
 		
-		private class ConsoleHandler extends Thread {
-			BufferedReader stdIn;
-			public ConsoleHandler() {
-				stdIn = new BufferedReader(new InputStreamReader(System.in));
-			}
-			public void run(){
-				String userInput;
-				try {
-					while((userInput = stdIn.readLine()) != null){
-						String [] tokens = userInput.split(" ");
-						if(tokens[0].indexOf("join") == 0){
-							new node(Integer.parseInt(tokens[1]));
-						} else if(userInput.equals("show all")){
-							RemoteProcedureCall(0, "showAll");
-//							System.out.println("ACK");
-						} else if(tokens[0].equals("show")){
-							RemoteProcedureCall(Integer.parseInt(tokens[1]), "show");
-							System.out.println("ACK");
-						} 
-						//more commands go here
+		public int RemoteProcedureCall(int node, String msg) throws IOException{
+//			System.out.println("In client RemoteProcedureCall");
+//			System.out.println("node " + node + " msg " + msg );
+			try(
+				Socket socketTemp = new Socket("localhost", 9000 + node);
+				PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
+				BufferedReader socketTempOut = new BufferedReader(new InputStreamReader(socketTemp.getInputStream()));
+				){
+					socketTempIn.println("temp");
+					socketTempIn.println(msg);
+					String feedBack;
+					int result = -1;
+					while((feedBack = socketTempOut.readLine()) != null){
+//						System.out.println("138 feedBack " + feedBack);
+						result = Integer.parseInt(feedBack);
+						break;
 					}
-				} catch (IOException e) {
-					e.printStackTrace();
+//					System.out.println("279 " + feedBack);	
+					return result;
+				} catch (ConnectException e) {
+					return -20;
 				}
-			}
-			
-			public int RemoteProcedureCall(int node, String msg) throws IOException{
-//				System.out.println("In client RemoteProcedureCall");
-//				System.out.println("node " + node + " msg " + msg );
-				try(
-					Socket socketTemp = new Socket("localhost", 9000 + node);
-					PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
-					BufferedReader socketTempOut = new BufferedReader(new InputStreamReader(socketTemp.getInputStream()));
-					){
-						socketTempIn.println("temp");
-						socketTempIn.println(msg);
-						String feedBack;
-						int result = -1;
-						while((feedBack = socketTempOut.readLine()) != null){
-//							System.out.println("138 feedBack " + feedBack);
-							result = Integer.parseInt(feedBack);
-							break;
-						}
-						System.out.println("279 " + feedBack);	
-						return result;
-					} catch (ConnectException e) {
-						System.out.println("Node " + node + " does not exist in system right now");
-						return -1;
-					}
-			}
-			
 		}
-	
+		
 	}
 	
 	// node thread
 	private class node extends Thread {
 		
+//		private boolean isLive;
 		private int identifier;
 		private ServerSocket serverSocket;
 		private HashSet<Integer> myKeys;
 		private HashSet<Integer> replicateKeys;
 		private FingerTable fingerTable;
-		private Hashtable<Integer, Socket> nodeSocks;				//store the socket from other nodes  --identifier socket
-		private Hashtable<Integer, PrintWriter> nodeOuts;
-		private Hashtable<Integer, BufferedReader> nodeIns;
-		private Socket socketClient;
-		private PrintWriter SendToClient;
-		private BufferedReader RecFromClient;
 		private int predecessor;
 		private int successor;
+		private int nextSuccessor;
 		private boolean hasVisited;
+		private Thread listener;
 		
 		public node(int identifier) throws UnknownHostException, IOException {
 //		System.out.println("In node ctor");
+//			this.isLive = true;
 			this.identifier = identifier;
 			serverSocket = new ServerSocket(9000 + identifier);
-			new nodeListener(serverSocket).start();
+			
+			listener = new Thread(new nodeListener(serverSocket));
+			listener.start();
+			
 			this.myKeys = new HashSet<Integer>();
 			this.replicateKeys = new HashSet<Integer>();
 			this.hasVisited = false;
@@ -187,10 +157,7 @@ public class ChordServer {
 				}
 			}
 			this.fingerTable = new FingerTable(m, identifier);
-			nodeSocks = new Hashtable<Integer, Socket>();
-			nodeOuts = new Hashtable<Integer, PrintWriter>();
-			nodeIns = new Hashtable<Integer, BufferedReader>();
-			
+
 			// connect with node 0
 			if (identifier != 0){
 				initFingerTable();
@@ -206,20 +173,84 @@ public class ChordServer {
 			}
 			duplicateMyKeys();
 			
-			// connect with client
-			socketClient = new Socket("localhost", 8999);
-			RecFromClient = new BufferedReader(new InputStreamReader(socketClient.getInputStream()));
-			SendToClient = new PrintWriter(socketClient.getOutputStream(), true);
-			SendToClient.println(identifier);
-			SendToClient.println("ACK");						
-//			runnningNodes.add(identifier);	
 		}
 		
 		public void run() {
+			
+			heartBeatMonitor heartBeatMonitor = new heartBeatMonitor();
+			heartBeatMonitor.start();
+			
 			System.out.println("node " + identifier + " is running ...");
-			while (true) {
-				
+			
+			try {
+				listener.join();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
+			
+			heartBeatMonitor.terminate();
+		
+			System.out.println("node " + identifier + " ending...");
+
+		}
+		
+		private class heartBeatMonitor extends Thread{
+			Timer timer;
+			boolean isCrashed;
+			int delay = 2;
+			int period = 5;
+			
+			public void terminate() {
+				timer.cancel();
+				System.out.println("heartBeatMonitor of node " + identifier + " ending...");
+			}
+			
+			public heartBeatMonitor() {
+				isCrashed = false;
+				timer = new Timer();
+			}	
+			
+			public void run() {
+				timer.scheduleAtFixedRate(new TimerTask() {
+					public void run() {	
+						try {
+//							System.out.println("node "+identifier+" liveness check");
+							int res = RemoteProcedureCall(successor, "isAlive");
+							if (res >= 0) {
+								isCrashed = false;
+								nextSuccessor = res;
+							}
+							else if (res == -20) {
+								isCrashed = true;
+								System.out.println("node " + successor + " failed");
+								int oldSuccessor = successor;
+								successor = nextSuccessor;
+//								fingerTable.setFingerNode(0, successor);
+								mergeYourKeysAndUpdatePre();
+								duplicateMyKeys();
+								fixFinger(oldSuccessor, successor, identifier);
+							}
+							else System.out.println("invalid liveness state");
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}, delay*1000, period*1000);				
+			}
+			
+		}
+		
+		public void fixFinger(int oldNode, int newNode, int start) throws IOException {
+			for (int i=0; i<m; i++) {
+				if(fingerTable.getFingerNode(i) == oldNode) {
+					fingerTable.setFingerNode(i, newNode);
+					break;
+				}
+			}
+			if (predecessor != start)
+				RemoteProcedureCall(predecessor, "fix " + oldNode + " to " + newNode + " from " + start);
+			else 
+				System.out.println("Fixing ended");
 		}
 		
 		public int getSuccessor(){
@@ -272,7 +303,7 @@ public class ChordServer {
 		public void updateOthers() throws IOException{
 //	System.out.println("In updateOthers");
 			for (int i = 0; i < m; i++){
-				int p = findPredecessor((int)(identifier - Math.pow(2, i) + 1));				// modified 
+				int p = findPredecessor((int)(identifier - Math.pow(2, i) + 1 + 256) % 256);				// modified 
 //	System.out.println("p " + p);
 				String msg = "updateFingerTable " + identifier + " " + i;
 				RemoteProcedureCall(p, msg);
@@ -320,7 +351,11 @@ public class ChordServer {
 		public void duplicateMyKeys() throws IOException{
 			String mySerialKey = serializeMyKeys();
 			RemoteProcedureCall(successor, "setReplicateKeys " + mySerialKey);
-		}		
+		}	
+		
+		public void mergeYourKeysAndUpdatePre() throws IOException {
+			RemoteProcedureCall(successor, "mergeKeys " + identifier);
+		}
 		
 		// set my keys hashset
 		public void setMyKeys(String serializedKeys) throws IOException{
@@ -355,7 +390,8 @@ public class ChordServer {
 		
 		public int findSuccessor(int id) throws IOException {
 //	System.out.println("In findSuccessor");
-			int nPrime = findPredecessor(id);
+			int nPrime = findPredecessor(id);	
+			
 			String msg = "getSuccessor";
 			return RemoteProcedureCall(nPrime, msg);
 			
@@ -382,6 +418,7 @@ public class ChordServer {
 					return fingerTable.getFingerNode(i);
 				}
 			}
+			System.out.println("identifier " + identifier);
 			return identifier;
 		}
 		
@@ -395,7 +432,7 @@ public class ChordServer {
 				return;
 			} else if (identifier == 0 && hasVisited == true){
 				hasVisited = false;
-				System.out.println("ACK showAll");
+				System.out.println("ACK");
 				return;
 			} else {
 				show();
@@ -411,6 +448,7 @@ public class ChordServer {
 			System.out.println("Node " + identifier);
 			System.out.println("Predecessor " + predecessor);
 			System.out.println("Successor " + successor);
+			System.out.println("nextSuccessor " + nextSuccessor);
 			fingerTable.show();
 			System.out.println("Keys in node " + identifier);
 			System.out.println(myKeys.toString());
@@ -418,9 +456,17 @@ public class ChordServer {
 			System.out.println(replicateKeys.toString());
 		}
 		
+		void mergeKeysAndUpdatePre(String newPredecessor) throws IOException {
+			myKeys.addAll(replicateKeys);
+			replicateKeys.clear();
+			predecessor = Integer.parseInt(newPredecessor);
+			duplicateMyKeys();
+		}
+		
 		public int RemoteProcedureCall(int node, String msg) throws IOException{
 //	System.out.println("In RemoteProcedureCall");
 //	System.out.println("node " + node + " msg " + msg );
+//			System.out.println("identifier " + identifier + " node " + node);
 			try (
 				Socket socketTemp = new Socket("localhost", 9000 + node);
 				PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
@@ -439,18 +485,25 @@ public class ChordServer {
 					return 0;
 				} else if (msg.indexOf("setReplicateKeys") == 0){
 					return 0;
+				} else if(feedBack == null) {
+					return -20;
 				}
+	
 				result = Integer.parseInt(feedBack);
 //				System.out.println("279 " + feedBack);	
 				return result;
+			} catch (ConnectException e) {
+				return -20; // the remote socket is closed
 			}
 		}
 		
 		public boolean isInRange(int value, int lowerBound, int upperBound, boolean leftIsClose, boolean rightIsClose){
 //	System.out.println("In isInRange");
 //	System.out.println(value + " " + lowerBound + " " + upperBound + " " + leftIsClose + " " + rightIsClose);
-			if(lowerBound == upperBound){
+			if(lowerBound == upperBound && value != upperBound){
 				return true;
+			} else if (lowerBound == upperBound && value == upperBound){
+				return false;
 			} else if (lowerBound < upperBound){
 				if(leftIsClose && rightIsClose){
 					return (lowerBound <= value) && (value <= upperBound);
@@ -504,13 +557,27 @@ public class ChordServer {
 						PrintWriter writer = new PrintWriter(hiddenSocket.getOutputStream(), true);				
 						String type  = reader.readLine();
 						if(type.equals("temp")){
-							new TempHandler(hiddenSocket, reader, writer).start();
+							
+							TempHandler th = new TempHandler(hiddenSocket, reader, writer);
+							th.start();
+							synchronized(th) {
+								th.wait();
+								if (th.listenerCrash) {
+									break;
+								}
+							}
 						}
 					}	
-				} catch (IOException e) {
+				} catch (IOException | InterruptedException e) {
 					e.printStackTrace();
 				}
 				
+				try {
+					serverSocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				System.out.println("listener of node " + identifier + " ending...");	
 			}
 
 			
@@ -520,6 +587,7 @@ public class ChordServer {
 				Socket socket;
 				BufferedReader tempIn;
 				PrintWriter tempOut;
+				boolean listenerCrash;
 				
 				public TempHandler(Socket socket, BufferedReader reader, PrintWriter writer) throws IOException {
 //				System.out.println("TempHandler ctor");
@@ -527,7 +595,11 @@ public class ChordServer {
 					this.tempIn = reader;
 					this.tempOut = writer;
 //					System.out.print("Server " + identifier + " is in temp connection \n");
-					
+					listenerCrash = false;
+				}
+				
+				void crashListener() {
+					listenerCrash = true;
 				}
 				
 				public void run(){
@@ -536,48 +608,114 @@ public class ChordServer {
 						while((command = tempIn.readLine()) != null){
 //							System.out.println("Command " + command);
 							String tokens[] = command.split(" ");
+							
 							if(tokens[0].equals("findSuccessor")){
+								synchronized(this) {
+									notify();
+								}
 								int result = findSuccessor(Integer.parseInt(tokens[1]));
 								tempOut.println(result);
 							} else if (tokens[0].equals("updateFingerTable")){
+								synchronized(this) {
+									notify();
+								}
 								updateFingerTable(Integer.parseInt(tokens[1]), Integer.parseInt(tokens[2]));
 								tempOut.println("-1");
 							} else if (tokens[0].equals("getSuccessor")){
+								synchronized(this) {
+									notify();
+								}
 								int result = getSuccessor();
 								tempOut.println(result);
 							} else if (tokens[0].equals("getPredecessor")){
+								synchronized(this) {
+									notify();
+								}
 								int result = getPredecessor();
 								tempOut.println(result);
 							} else if (tokens[0].equals("setSuccessor")){
+								synchronized(this) {
+									notify();
+								}
 								setSuccessor(Integer.parseInt(tokens[1]));
 								tempOut.println("-1");
 							} else if (tokens[0].equals("setPredecessor")){
+								synchronized(this) {
+									notify();
+								}
 								setPredecessor(Integer.parseInt(tokens[1]));
 								tempOut.println("-1");
 							} else if (tokens[0].equals("closestPrecedingFinger")){
+								synchronized(this) {
+									notify();
+								}
 								int result = closestPrecedingFinger(Integer.parseInt(tokens[1]));
 								tempOut.println(result);
 							} else if (tokens[0].equals("transferKeys")){
+								synchronized(this) {
+									notify();
+								}
 								String result = transferKeys(Integer.parseInt(tokens[1]));
 								tempOut.println(result);	
 							} else if (tokens[0].equals("setReplicateKeys")){
+								synchronized(this) {
+									notify();
+								}
 								setReplicateKeys(command.substring(command.indexOf(" ") + 1));
 								tempOut.println(0);	
 							} else if (tokens[0].equals("show")){
+								synchronized(this) {
+									notify();
+								}
 								show();
 								tempOut.println(0);	
 							} else if (tokens[0].equals("showAll")){
+								synchronized(this) {
+									notify();
+								}
 								showAll();
 								tempOut.println(0);	
+							} else if (tokens[0].equals("crash")) {
+								crashListener();
+								synchronized(this) {
+									notify();
+								}
+								tempOut.println("-2");
+							} else if (tokens[0].equals("isAlive")) {
+								synchronized(this) {
+									notify();
+								}
+								tempOut.println(successor);
+							} else if (tokens[0].equals("fix")) {
+								synchronized(this) {
+									notify();
+								}
+								fixFinger(Integer.parseInt(tokens[1]), Integer.parseInt(tokens[3]), Integer.parseInt(tokens[5]));
+								tempOut.println("-30");
+							} else if (tokens[0].equals("mergeKeys")) {
+								synchronized(this) {
+									notify();
+								}
+								mergeKeysAndUpdatePre(tokens[1]);
+								tempOut.println("-30");
 							} else {
+								synchronized(this) {
+									notify();
+								}
 								System.out.println("Unknown procedure call");
-								tempOut.println("Unknown");
+								tempOut.println("-3");
 							}
 							break;
 						}
 					} catch (IOException e) {
 						return;
-					}	
+					} finally {
+						try {
+							socket.close();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
 					
 				}
 			}
