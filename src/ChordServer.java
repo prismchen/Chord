@@ -88,7 +88,10 @@ public class ChordServer {
 					} else if(tokens[0].equals("crash")){
 						int p = Integer.parseInt(tokens[1]);
 						String msg = "crash " + p;
-						RemoteProcedureCall(p, msg);
+						int res = RemoteProcedureCall(p, msg);
+						if (res == -20) {
+							System.out.println("node " + p + " does not exit");
+						}
 					} else {
 						System.out.println("Invalid input");
 					}
@@ -198,7 +201,7 @@ public class ChordServer {
 			Timer timer;
 			boolean isCrashed;
 			int delay = 2;
-			int period = 5;
+			int period = 2;
 			
 			public void terminate() {
 				timer.cancel();
@@ -244,7 +247,6 @@ public class ChordServer {
 			for (int i=0; i<m; i++) {
 				if(fingerTable.getFingerNode(i) == oldNode) {
 					fingerTable.setFingerNode(i, newNode);
-					break;
 				}
 			}
 			if (predecessor != start)
