@@ -36,10 +36,9 @@ public class ChordServer {
 		System.out.println("Bounds of delay in milliSec: " + minDelay + " " + maxDelay);
     }
 	
-	// run()
 	public void run() throws IOException {
 		new ConsoleHandler().start();
-		new node(0, m).start();
+		new node(0, m, maxDelay, minDelay).start();
 	}
 	
 	public static void main(String[] args) throws IOException {	
@@ -58,13 +57,18 @@ public class ChordServer {
 				while((userInput = stdIn.readLine()) != null){
 					String [] tokens = userInput.split(" ");
 					if(tokens[0].indexOf("join") == 0){
-						new node(Integer.parseInt(tokens[1]), m).start();
+						new node(Integer.parseInt(tokens[1]), m, maxDelay, minDelay).start();
 					} else if(userInput.equals("show all")){
 						RemoteProcedureCall(0, "showAll");
-//						System.out.println("ACK");
 					} else if(tokens[0].equals("show")){
-						RemoteProcedureCall(Integer.parseInt(tokens[1]), "show");
-						System.out.println("ACK");
+						int p = Integer.parseInt(tokens[1]);
+						int res = RemoteProcedureCall(p, "show");
+						if (res == -20) {
+							System.out.println("node " + p + " does not exit");
+						}
+						else {
+							System.out.println("ACK");
+						}
 					} else if(tokens[0].equals("find")) {
 						int p = Integer.parseInt(tokens[1]);
 						int k = Integer.parseInt(tokens[2]);
@@ -91,8 +95,6 @@ public class ChordServer {
 		}
 		
 		public int RemoteProcedureCall(int node, String msg) throws IOException{
-//			System.out.println("In client RemoteProcedureCall");
-//			System.out.println("node " + node + " msg " + msg );
 			try(
 				Socket socketTemp = new Socket("localhost", 9000 + node);
 				PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
@@ -103,11 +105,9 @@ public class ChordServer {
 					String feedBack;
 					int result = -1;
 					while((feedBack = socketTempOut.readLine()) != null){
-//						System.out.println("138 feedBack " + feedBack);
 						result = Integer.parseInt(feedBack);
 						break;
 					}
-//					System.out.println("279 " + feedBack);	
 					return result;
 				} catch (ConnectException e) {
 					return -20;
