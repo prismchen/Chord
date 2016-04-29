@@ -132,8 +132,11 @@ import java.util.TimerTask;
 			}
 			if (predecessor != start)
 				RemoteProcedureCall(predecessor, "fix " + oldNode + " to " + newNode + " from " + start);
-			else 
+			else {
 				System.out.println("Fixing ended");
+				System.out.println("ACK");
+			}
+				
 		}
 		
 		public int getSuccessor(){
