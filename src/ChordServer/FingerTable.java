@@ -1,3 +1,7 @@
+package ChordServer;
+
+import ChordServer.Finger;
+
 import java.io.IOException;
 
 
@@ -45,7 +49,7 @@ public class FingerTable {
 	
 	public void show(){
 		for(int i = 0; i < 8; i++){
-			System.out.println("Finger " + i + ": " + getFingerNode(i));
+			System.out.println("ChordServer.Finger " + i + ": " + getFingerNode(i));
 		}
 	}
 

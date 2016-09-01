@@ -1,3 +1,7 @@
+package ChordServer;
+
+import ChordServer.FingerTable;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,7 +15,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// Node thread
+// ChordServer.Node thread
 public class Node extends Thread {
 
 	private int fingerTableSize;
@@ -52,12 +56,12 @@ public class Node extends Thread {
 		}
 		this.fingerTable = new FingerTable(m, identifier, maxDelay, minDelay);
 
-		// connect with Node 0
+		// connect with ChordServer.Node 0
 		if (identifier != 0){
 			initFingerTable();
 			updateOthers();
-				/* each Node is responsible for the safety and integrity of their own data.
-					Their for each Node will ask their successor for keys when it joins the chord
+				/* each ChordServer.Node is responsible for the safety and integrity of their own data.
+					Their for each ChordServer.Node will ask their successor for keys when it joins the chord
 					and ask successor to backup its keys every time its successor is changed
 				*/
 			askForKeys();		// ask for successor to transfer my keys to me
@@ -78,7 +82,7 @@ public class Node extends Thread {
 		heartBeatMonitor heartBeatMonitor = new heartBeatMonitor();
 		heartBeatMonitor.start();
 
-		System.out.println("Node " + identifier + " is running ...");
+		System.out.println("ChordServer.Node " + identifier + " is running ...");
 
 		try {
 			listener.join();
@@ -88,7 +92,7 @@ public class Node extends Thread {
 
 		heartBeatMonitor.terminate();
 
-		System.out.println("Node " + identifier + " ending...");
+		System.out.println("ChordServer.Node " + identifier + " ending...");
 
 	}
 
@@ -99,7 +103,7 @@ public class Node extends Thread {
 
 		public void terminate() {
 			timer.cancel();
-			System.out.println("heartBeatMonitor of Node " + identifier + " ending...");
+			System.out.println("heartBeatMonitor of ChordServer.Node " + identifier + " ending...");
 		}
 
 		public heartBeatMonitor() {
@@ -115,7 +119,7 @@ public class Node extends Thread {
 							nextSuccessor = res;
 						}
 						else if (res == -20) {
-							System.out.println("Node " + successor + " failed");
+							System.out.println("ChordServer.Node " + successor + " failed");
 							int oldSuccessor = successor;
 							successor = nextSuccessor;
 							mergeYourKeysAndUpdatePre();
@@ -326,14 +330,14 @@ public class Node extends Thread {
 
 	// print finger table of p, keys of p to the console
 	public void show(){
-		System.out.println("Node " + identifier);
+		System.out.println("ChordServer.Node " + identifier);
 		System.out.println("Predecessor " + predecessor);
 		System.out.println("Successor " + successor);
 		System.out.println("nextSuccessor " + nextSuccessor);
 		fingerTable.show();
-		System.out.println("Keys in Node " + identifier);
+		System.out.println("Keys in ChordServer.Node " + identifier);
 		System.out.println(myKeys.toString());
-		System.out.println("Replicate Keys in Node " + identifier);
+		System.out.println("Replicate Keys in ChordServer.Node " + identifier);
 		System.out.println(replicateKeys.toString());
 	}
 
@@ -422,7 +426,7 @@ public class Node extends Thread {
 		}
 	}
 
-	// Node listener for accepting new connetions
+	// ChordServer.Node listener for accepting new connetions
 	private class nodeListener extends Thread {
 		ServerSocket serverSocket;
 		BufferedReader serverIn;
@@ -460,7 +464,7 @@ public class Node extends Thread {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			System.out.println("listener of Node " + identifier + " ending...");
+			System.out.println("listener of ChordServer.Node " + identifier + " ending...");
 		}
 
 

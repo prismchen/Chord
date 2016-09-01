@@ -1,3 +1,5 @@
+package ChordServer;
+
 import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
@@ -18,7 +20,7 @@ public class ChordServer {
 	private int minDelay;
 	private int maxDelay;
 
-	// Ctor of ChordServer
+	// Ctor of ChordServer.ChordServer
 	public ChordServer() {	
 		counter = new AtomicInteger();
 		isBusy = new AtomicInteger();
@@ -69,7 +71,7 @@ public class ChordServer {
 						int p = Integer.parseInt(tokens[1]);
 						int res = RemoteProcedureCall(p, "show");
 						if (res == -20) {
-							System.out.println("Node " + p + " does not exit");
+							System.out.println("ChordServer.Node " + p + " does not exit");
 						}
 						else {
 							System.out.println("ACK");
@@ -83,15 +85,15 @@ public class ChordServer {
 						String msg = "findSuccessor " + k;
 						int res = RemoteProcedureCall(p, msg);
 						if (res != -20)
-							System.out.println("Node " + res + " contains " + k);
+							System.out.println("ChordServer.Node " + res + " contains " + k);
 						else 
-							System.out.println("Node " + p + " does not exit");
+							System.out.println("ChordServer.Node " + p + " does not exit");
 					} else if(tokens[0].equals("crash")){
 						int p = Integer.parseInt(tokens[1]);
 						String msg = "crash " + p;
 						int res = RemoteProcedureCall(p, msg);
 						if (res == -20) {
-							System.out.println("Node " + p + " does not exit");
+							System.out.println("ChordServer.Node " + p + " does not exit");
 						}
 					} else if(tokens[0].equals("test1")){
 						// test1 10 123456
@@ -149,7 +151,7 @@ public class ChordServer {
 				Collections.shuffle(joinedNode);
 				int askNode = joinedNode.get(0);
 				int askKey = Math.abs(randNum.nextInt() % 256);
-				System.out.println("Node " + askNode + " find key " + askKey);
+				System.out.println("ChordServer.Node " + askNode + " find key " + askKey);
 				String msg = "findSuccessor " + askKey;
 				RemoteProcedureCall(askNode, msg);	
 				curFindNode++;
