@@ -13,40 +13,40 @@ import java.util.TimerTask;
  * Created by xiaochen on 9/1/16.
  */
 public class Finger {
-    public int start;
-    public int node;
+    public int mStart;
+    public int mNode;
 
-    private int minDelay;
-    private int maxDelay;
+    private int mMinDelay;
+    private int mMaxDelay;
 
     public Finger(int identifier, int fingerIndex, int minDelay, int maxDelay) {
-        start = (int) (identifier + Math.pow(2, fingerIndex));
-        this.minDelay = minDelay;
-        this.maxDelay = maxDelay;
+        mStart = (int) (identifier + Math.pow(2, fingerIndex));
+        this.mMinDelay = minDelay;
+        this.mMaxDelay = maxDelay;
     }
 
     public int getterStart(){
-        return start;
+        return mStart;
     }
 
     public void setterStart(int Start){
-        start = Start;
+        mStart = Start;
     }
 
     public int getterNode(){
-        return node;
+        return mNode;
     }
 
     public void setterNode(int Node){
-        node = Node;
+        mNode = Node;
     }
 
     public int getPredecessor() throws NumberFormatException, IOException{
-        return RemoteProcedureCall(node, "getPredecessor");
+        return RemoteProcedureCall(mNode, "getPredecessor");
     }
 
     public int setPredecessor(int value) throws NumberFormatException, IOException{
-        return RemoteProcedureCall(node, "setPredecessor " + value);
+        return RemoteProcedureCall(mNode, "setPredecessor " + value);
     }
 
     int RemoteProcedureCall(int node, String msg) throws IOException{
@@ -64,7 +64,7 @@ public class Finger {
                 public void run() {
                     socketTempIn.println(msg);
                 }
-            }, (long) (minDelay + (long)(Math.random() * ((maxDelay - minDelay) + 1))) );
+            }, (long) (mMinDelay + (long)(Math.random() * ((mMaxDelay - mMinDelay) + 1))) );
 
             int result = -1;
 

@@ -1,7 +1,5 @@
 package ChordServer;
 
-import ChordServer.FingerTable;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -18,17 +16,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 // ChordServer.Node thread
 public class Node extends Thread {
 
-	private int fingerTableSize;
-	private int identifier;
-	private ServerSocket serverSocket;
-	private HashSet<Integer> myKeys;
-	private HashSet<Integer> replicateKeys;
-	private FingerTable fingerTable;
-	private int predecessor;
-	private int successor;
-	private int nextSuccessor;
-	private boolean hasVisited;
-	private Thread listener;
+	private int mFingerTableSize;
+	private int mIdentifier;
+	private ServerSocket mServerSocket;
+	private HashSet<Integer> mKeys;
+	private HashSet<Integer> mReplicateKeys;
+	private FingerTable mFingerTable;
+	private int mPredecessor;
+	private int mSuccessor;
+	private int mNextSuccessor;
+	private boolean mHasVisited;
+	private Thread mListener;
 
 	private AtomicInteger counter;
 
@@ -39,22 +37,22 @@ public class Node extends Thread {
 		this.maxDelay = maxDelay;
 		this.minDelay = minDelay;
 		this.counter = counter;
-		this.fingerTableSize = m;
-		this.identifier = identifier;
-		serverSocket = new ServerSocket(9000 + identifier);
+		this.mFingerTableSize = m;
+		this.mIdentifier = identifier;
+		mServerSocket = new ServerSocket(9000 + identifier);
 
-		listener = new Thread(new nodeListener(serverSocket));
-		listener.start();
+		mListener = new Thread(new nodeListener(mServerSocket));
+		mListener.start();
 
-		this.myKeys = new HashSet<Integer>();
-		this.replicateKeys = new HashSet<Integer>();
-		this.hasVisited = false;
+		this.mKeys = new HashSet<Integer>();
+		this.mReplicateKeys = new HashSet<Integer>();
+		this.mHasVisited = false;
 		if(identifier == 0){
 			for (int i=0; i<256; i++) {
-				myKeys.add(i);
+				mKeys.add(i);
 			}
 		}
-		this.fingerTable = new FingerTable(m, identifier, maxDelay, minDelay);
+		this.mFingerTable = new FingerTable(m, identifier, maxDelay, minDelay);
 
 		// connect with ChordServer.Node 0
 		if (identifier != 0){
@@ -82,18 +80,17 @@ public class Node extends Thread {
 		heartBeatMonitor heartBeatMonitor = new heartBeatMonitor();
 		heartBeatMonitor.start();
 
-		System.out.println("ChordServer.Node " + identifier + " is running ...");
+		System.out.println("ChordServer.Node " + mIdentifier + " is running ...");
 
 		try {
-			listener.join();
+			mListener.join();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 
 		heartBeatMonitor.terminate();
 
-		System.out.println("ChordServer.Node " + identifier + " ending...");
-
+		System.out.println("ChordServer.Node " + mIdentifier + " ending...");
 	}
 
 	private class heartBeatMonitor extends Thread{
@@ -103,7 +100,7 @@ public class Node extends Thread {
 
 		public void terminate() {
 			timer.cancel();
-			System.out.println("heartBeatMonitor of ChordServer.Node " + identifier + " ending...");
+			System.out.println("heartBeatMonitor of ChordServer.Node " + mIdentifier + " ending...");
 		}
 
 		public heartBeatMonitor() {
@@ -114,17 +111,17 @@ public class Node extends Thread {
 			timer.scheduleAtFixedRate(new TimerTask() {
 				public void run() {
 					try {
-						int res = RemoteProcedureCall(successor, "isAlive");
+						int res = RemoteProcedureCall(mSuccessor, "isAlive");
 						if (res >= 0) {
-							nextSuccessor = res;
+							mNextSuccessor = res;
 						}
 						else if (res == -20) {
-							System.out.println("ChordServer.Node " + successor + " failed");
-							int oldSuccessor = successor;
-							successor = nextSuccessor;
+							System.out.println("ChordServer.Node " + mSuccessor + " failed");
+							int oldSuccessor = mSuccessor;
+							mSuccessor = mNextSuccessor;
 							mergeYourKeysAndUpdatePre();
 							duplicateMyKeys();
-							fixFinger(oldSuccessor, successor, identifier);
+							fixFinger(oldSuccessor, mSuccessor, mIdentifier);
 						}
 						else System.out.println("invalid liveness state");
 					} catch (IOException e) {
@@ -137,13 +134,13 @@ public class Node extends Thread {
 	}
 
 	public void fixFinger(int oldNode, int newNode, int start) throws IOException {
-		for (int i = 0; i< fingerTableSize; i++) {
-			if(fingerTable.getFingerNode(i) == oldNode) {
-				fingerTable.setFingerNode(i, newNode);
+		for (int i = 0; i< mFingerTableSize; i++) {
+			if(mFingerTable.getFingerNode(i) == oldNode) {
+				mFingerTable.setFingerNode(i, newNode);
 			}
 		}
-		if (predecessor != start)
-			RemoteProcedureCall(predecessor, "fix " + oldNode + " to " + newNode + " from " + start);
+		if (mPredecessor != start)
+			RemoteProcedureCall(mPredecessor, "fix " + oldNode + " to " + newNode + " from " + start);
 		else {
 			System.out.println("Fixing ended");
 			System.out.println("ACK");
@@ -152,61 +149,61 @@ public class Node extends Thread {
 	}
 
 	public int getSuccessor(){
-		return successor;
+		return mSuccessor;
 	}
 
 	public void setSuccessor(int successor) throws IOException{
-		this.successor = successor;
-		if(!myKeys.isEmpty()){
+		this.mSuccessor = successor;
+		if(!mKeys.isEmpty()){
 			duplicateMyKeys();
 		}
 	}
 
 	public int getPredecessor(){
-		return predecessor;
+		return mPredecessor;
 	}
 
 	public void setPredecessor(int predecessor) throws IOException{
-		this.predecessor = predecessor;
+		this.mPredecessor = predecessor;
 	}
 
 	public void initFingerTable() throws IOException{
-		int finger0Start = fingerTable.getFingerStart(0);
+		int finger0Start = mFingerTable.getFingerStart(0);
 		String msg = "findSuccessor " + finger0Start;
 		int feedBack = RemoteProcedureCall(0, msg);
-		fingerTable.setFingerNode(0, feedBack);
+		mFingerTable.setFingerNode(0, feedBack);
 		setSuccessor(feedBack);
-		setPredecessor(fingerTable.getFingerPredecessor(0));
-		fingerTable.setFingerPredecessor(0, identifier);
+		setPredecessor(mFingerTable.getFingerPredecessor(0));
+		mFingerTable.setFingerPredecessor(0, mIdentifier);
 
-		for (int i = 1; i < fingerTableSize; i++){
-			int fingerStart = fingerTable.getFingerStart(i);
-			int fingerNode = fingerTable.getFingerNode(i-1);
-			if (isInRange(fingerStart, identifier, fingerNode, true, false)){
-				fingerTable.setFingerNode(i, fingerNode);
+		for (int i = 1; i < mFingerTableSize; i++){
+			int fingerStart = mFingerTable.getFingerStart(i);
+			int fingerNode = mFingerTable.getFingerNode(i-1);
+			if (isInRange(fingerStart, mIdentifier, fingerNode, true, false)){
+				mFingerTable.setFingerNode(i, fingerNode);
 			} else {
 				msg = "findSuccessor " + fingerStart;
 				feedBack = RemoteProcedureCall(0, msg);
-				fingerTable.setFingerNode(i, feedBack);
+				mFingerTable.setFingerNode(i, feedBack);
 			}
 		}
 	}
 
 	public void updateOthers() throws IOException{
-		for (int i = 0; i < fingerTableSize; i++){
-			int p = findPredecessor((int)(identifier - Math.pow(2, i) + 1 + 256) % 256);				// modified
-			String msg = "updateFingerTable " + identifier + " " + i;
+		for (int i = 0; i < mFingerTableSize; i++){
+			int p = findPredecessor((int)(mIdentifier - Math.pow(2, i) + 1 + 256) % 256);				// modified
+			String msg = "updateFingerTable " + mIdentifier + " " + i;
 			RemoteProcedureCall(p, msg);
 		}
 	}
 
 	public void updateFingerTable(int value, int index) throws IOException{
-		if(isInRange(value, identifier, fingerTable.getFingerNode(index), false, false)){	// modified
+		if(isInRange(value, mIdentifier, mFingerTable.getFingerNode(index), false, false)){	// modified
 			if(index == 0){
 				setSuccessor(value);
 			}
-			fingerTable.setFingerNode(index, value);
-			int p = predecessor;
+			mFingerTable.setFingerNode(index, value);
+			int p = mPredecessor;
 			String msg = "updateFingerTable " + value + " " + index ;
 			RemoteProcedureCall(p, msg);
 		}
@@ -214,21 +211,21 @@ public class Node extends Thread {
 
 	// ask for successor keys that should be mine
 	public void askForKeys() throws IOException{
-		RemoteProcedureCall(successor, "transferKeys " + identifier);
+		RemoteProcedureCall(mSuccessor, "transferKeys " + mIdentifier);
 	}
 
-	// be asked by predecessor to transfer keys to newly added predecessor
+	// be asked by mPredecessor to transfer keys to newly added mPredecessor
 	public String transferKeys(int node) throws IOException{
 		StringBuilder result = new StringBuilder();
 		HashSet<Integer> myNewKeys = new HashSet<Integer>();
-		for(int key: myKeys){
-			if(isInRange(key, node, identifier, false, true)){
+		for(int key: mKeys){
+			if(isInRange(key, node, mIdentifier, false, true)){
 				myNewKeys.add(key);
 			} else {
 				result.append(key + " ");
 			}
 		}
-		myKeys = myNewKeys;
+		mKeys = myNewKeys;
 
 		duplicateMyKeys();		// ask successor to duplicate my current keys
 
@@ -238,20 +235,20 @@ public class Node extends Thread {
 	// ask for successor to save their keys for backup
 	public void duplicateMyKeys() throws IOException{
 		String mySerialKey = serializeMyKeys();
-		RemoteProcedureCall(successor, "setReplicateKeys " + mySerialKey);
+		RemoteProcedureCall(mSuccessor, "setReplicateKeys " + mySerialKey);
 	}
 
 	public void mergeYourKeysAndUpdatePre() throws IOException {
-		RemoteProcedureCall(successor, "mergeKeys " + identifier);
+		RemoteProcedureCall(mSuccessor, "mergeKeys " + mIdentifier);
 	}
 
 	// set my keys hashset
 	public void setMyKeys(String serializedKeys) throws IOException{
 		if(!serializedKeys.equals("")){
-			myKeys = new HashSet<Integer>();
+			mKeys = new HashSet<Integer>();
 			String [] tokens = serializedKeys.split(" ");
 			for(String token : tokens){
-				myKeys.add(Integer.parseInt(token));
+				mKeys.add(Integer.parseInt(token));
 			}
 			duplicateMyKeys();
 		}
@@ -260,17 +257,17 @@ public class Node extends Thread {
 	// set replicate keys hashset
 	public void setReplicateKeys(String serializedKeys){
 		if(!serializedKeys.equals("")){
-			replicateKeys = new HashSet<Integer>();
+			mReplicateKeys = new HashSet<Integer>();
 			String [] tokens = serializedKeys.split(" ");
 			for(String token : tokens){
-				replicateKeys.add(Integer.parseInt(token));
+				mReplicateKeys.add(Integer.parseInt(token));
 			}
 		}
 	}
 
 	public String serializeMyKeys(){
 		StringBuilder result = new StringBuilder();
-		for (int key : myKeys) {
+		for (int key : mKeys) {
 			result = result.append(key + " ");
 		}
 		return result.toString();
@@ -285,7 +282,7 @@ public class Node extends Thread {
 	}
 
 	public int findPredecessor(int id) throws IOException{
-		int nPrime = identifier;
+		int nPrime = mIdentifier;
 		int nPrimeSuccessor = getSuccessor();
 		String msg;
 		while(!isInRange(id, nPrime, nPrimeSuccessor, false, true)){
@@ -298,30 +295,30 @@ public class Node extends Thread {
 	}
 
 	public int closestPrecedingFinger(int id){
-		for (int i = fingerTableSize -1; i >= 0; i--){
-			if(isInRange(fingerTable.getFingerNode(i), identifier, id, false, false)){
-				return fingerTable.getFingerNode(i);
+		for (int i = mFingerTableSize -1; i >= 0; i--){
+			if(isInRange(mFingerTable.getFingerNode(i), mIdentifier, id, false, false)){
+				return mFingerTable.getFingerNode(i);
 			}
 		}
-		System.out.println("identifier " + identifier);
-		return identifier;
+		System.out.println("mIdentifier " + mIdentifier);
+		return mIdentifier;
 	}
 
 
 	public void showAll() throws IOException{
 
-		if(identifier == 0 && hasVisited == false){
+		if(mIdentifier == 0 && mHasVisited == false){
 			show();
-			hasVisited = true;
-			RemoteProcedureCall(successor, "showAll");
+			mHasVisited = true;
+			RemoteProcedureCall(mSuccessor, "showAll");
 			return;
-		} else if (identifier == 0 && hasVisited == true){
-			hasVisited = false;
+		} else if (mIdentifier == 0 && mHasVisited == true){
+			mHasVisited = false;
 			System.out.println("ACK");
 			return;
 		} else {
 			show();
-			RemoteProcedureCall(successor, "showAll");
+			RemoteProcedureCall(mSuccessor, "showAll");
 			return;
 		}
 
@@ -330,21 +327,21 @@ public class Node extends Thread {
 
 	// print finger table of p, keys of p to the console
 	public void show(){
-		System.out.println("ChordServer.Node " + identifier);
-		System.out.println("Predecessor " + predecessor);
-		System.out.println("Successor " + successor);
-		System.out.println("nextSuccessor " + nextSuccessor);
-		fingerTable.show();
-		System.out.println("Keys in ChordServer.Node " + identifier);
-		System.out.println(myKeys.toString());
-		System.out.println("Replicate Keys in ChordServer.Node " + identifier);
-		System.out.println(replicateKeys.toString());
+		System.out.println("ChordServer.Node " + mIdentifier);
+		System.out.println("Predecessor " + mPredecessor);
+		System.out.println("Successor " + mSuccessor);
+		System.out.println("mNextSuccessor " + mNextSuccessor);
+		mFingerTable.show();
+		System.out.println("Keys in ChordServer.Node " + mIdentifier);
+		System.out.println(mKeys.toString());
+		System.out.println("Replicate Keys in ChordServer.Node " + mIdentifier);
+		System.out.println(mReplicateKeys.toString());
 	}
 
 	void mergeKeysAndUpdatePre(String newPredecessor) throws IOException {
-		myKeys.addAll(replicateKeys);
-		replicateKeys.clear();
-		predecessor = Integer.parseInt(newPredecessor);
+		mKeys.addAll(mReplicateKeys);
+		mReplicateKeys.clear();
+		mPredecessor = Integer.parseInt(newPredecessor);
 		duplicateMyKeys();
 	}
 
@@ -426,7 +423,7 @@ public class Node extends Thread {
 		}
 	}
 
-	// ChordServer.Node listener for accepting new connetions
+	// ChordServer.Node mListener for accepting new connetions
 	private class nodeListener extends Thread {
 		ServerSocket serverSocket;
 		BufferedReader serverIn;
@@ -464,7 +461,7 @@ public class Node extends Thread {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			System.out.println("listener of ChordServer.Node " + identifier + " ending...");
+			System.out.println("mListener of ChordServer.Node " + mIdentifier + " ending...");
 		}
 
 
@@ -569,7 +566,7 @@ public class Node extends Thread {
 							synchronized(this) {
 								notify();
 							}
-							tempOut.println(successor);
+							tempOut.println(mSuccessor);
 						} else if (tokens[0].equals("fix")) {
 							synchronized(this) {
 								notify();

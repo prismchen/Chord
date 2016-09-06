@@ -11,21 +11,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ChordServer {
 
-	AtomicInteger counter;
-	public AtomicInteger isBusy;
-	public ArrayList<Integer> joinedNode;
-	public Random randNum;
+	AtomicInteger mCounter;
+	public AtomicInteger mIsBusy;
+	public ArrayList<Integer> mJoinedNode;
+	public Random mRandNum;
 	
 	private static final int FINAL_TABLE_SIZE = 8;
-	private int minDelay;
-	private int maxDelay;
+	private int mMinDelay;
+	private int mMaxDelay;
 
 	// Ctor of ChordServer.ChordServer
 	public ChordServer() {	
-		counter = new AtomicInteger();
-		isBusy = new AtomicInteger();
-		joinedNode = new ArrayList<Integer>();
-		joinedNode.add(0);
+		mCounter = new AtomicInteger();
+		mIsBusy = new AtomicInteger();
+		mJoinedNode = new ArrayList<Integer>();
+		mJoinedNode.add(0);
 		readConfig("config");
 	}
 	
@@ -35,22 +35,21 @@ public class ChordServer {
 
     		String currLine = configReader.readLine();		
     		String[] delayLimits = currLine.split(" ", 2);
-			minDelay = Integer.parseInt(delayLimits[0]);
-			maxDelay = Integer.parseInt(delayLimits[1]);
-			currLine = configReader.readLine();	
-			
+			mMinDelay = Integer.parseInt(delayLimits[0]);
+			mMaxDelay = Integer.parseInt(delayLimits[1]);
+
     	} catch (IOException e) {
 			e.printStackTrace();
 		}
 
     	// print out results from the configuration file.
     	System.out.println("Finish reading from the configuration file");
-		System.out.println("Bounds of delay in milliSec: " + minDelay + " " + maxDelay);
+		System.out.println("Bounds of delay in milliSec: " + mMinDelay + " " + mMaxDelay);
     }
 	
 	public void run() throws IOException {
 		new ConsoleHandler().start();
-		new Node(0, FINAL_TABLE_SIZE, maxDelay, minDelay, counter).start();
+		new Node(0, FINAL_TABLE_SIZE, mMaxDelay, mMinDelay, mCounter).start();
 	}
 	
 	private class ConsoleHandler extends Thread {
@@ -64,7 +63,7 @@ public class ChordServer {
 				while((userInput = stdIn.readLine()) != null){
 					String [] tokens = userInput.split(" ");
 					if(tokens[0].indexOf("join") == 0){
-						new Node(Integer.parseInt(tokens[1]), FINAL_TABLE_SIZE, maxDelay, minDelay, counter).start();
+						new Node(Integer.parseInt(tokens[1]), FINAL_TABLE_SIZE, mMaxDelay, mMinDelay, mCounter).start();
 					} else if(userInput.equals("show all")){
 						RemoteProcedureCall(0, "showAll");
 					} else if(tokens[0].equals("show")){
@@ -112,21 +111,21 @@ public class ChordServer {
 		
 		public void countJoin(int nodeNum, long seed) throws UnknownHostException, IOException{
 			int curNumNode = 0;
-			counter.set(0);
-			randNum = new Random();
-		    randNum.setSeed(seed);
+			mCounter.set(0);
+			mRandNum = new Random();
+		    mRandNum.setSeed(seed);
 		    int nextNode;
 		    
 			while(curNumNode < nodeNum){
 				while(true){
-					nextNode = Math.abs(randNum.nextInt() % 256);
-					if(!joinedNode.contains(nextNode)){
+					nextNode = Math.abs(mRandNum.nextInt() % 256);
+					if(!mJoinedNode.contains(nextNode)){
 						break;
 					}
 				}
-				joinedNode.add(nextNode);
+				mJoinedNode.add(nextNode);
 				
-				Node newNode = new Node(nextNode, FINAL_TABLE_SIZE, maxDelay, minDelay, counter);
+				Node newNode = new Node(nextNode, FINAL_TABLE_SIZE, mMaxDelay, mMinDelay, mCounter);
 				newNode.start();
 				
 			    synchronized(newNode){
@@ -139,28 +138,28 @@ public class ChordServer {
 				
 				curNumNode++;
 			}
-			System.out.println("msgNum: "+ counter.get());
+			System.out.println("msgNum: "+ mCounter.get());
 		}
 		
 		public void countFind(int findNum, long seed) throws IOException{
 			int curFindNode = 0;
-			counter.set(0);
-			randNum = new Random();
-		    randNum.setSeed(seed);
+			mCounter.set(0);
+			mRandNum = new Random();
+		    mRandNum.setSeed(seed);
 			while(curFindNode < findNum){
-				Collections.shuffle(joinedNode);
-				int askNode = joinedNode.get(0);
-				int askKey = Math.abs(randNum.nextInt() % 256);
+				Collections.shuffle(mJoinedNode);
+				int askNode = mJoinedNode.get(0);
+				int askKey = Math.abs(mRandNum.nextInt() % 256);
 				System.out.println("ChordServer.Node " + askNode + " find key " + askKey);
 				String msg = "findSuccessor " + askKey;
 				RemoteProcedureCall(askNode, msg);	
 				curFindNode++;
 			}
-			System.out.println("msgNum: "+ counter.get());
+			System.out.println("msgNum: "+ mCounter.get());
 		}
 		
 		public int RemoteProcedureCall(int node, String msg) throws IOException{
-			counter.incrementAndGet();
+			mCounter.incrementAndGet();
 			try(
 				Socket socketTemp = new Socket("localhost", 9000 + node);
 				PrintWriter socketTempIn = new PrintWriter(socketTemp.getOutputStream(), true);
